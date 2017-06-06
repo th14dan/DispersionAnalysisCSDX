@@ -323,7 +323,6 @@ def convert_to_cartesian(pimages,cshape=(112,112),mode='nearest',cval=numpy.nan,
 ######################STRAIGHT FFT CALCULATIONS FOR 2D SPECTRA ##################################
 
 def FFT_map_2D(t,images,df=100.,center=None,
-               phase_only=False,weighted_phase=False,
                refpixel=None,roll=None,normalized=True,
                subtract_mean_frame=True):
     """

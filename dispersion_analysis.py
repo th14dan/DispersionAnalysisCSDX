@@ -30,15 +30,15 @@ def main():
         sys.exit()
         
     # read in movie file
-    t, images = disp.read_movie(vidfile)
+    t, images = disp.read_movie(vidfile, framelimits=(0,10000))
     
     # average blocks to determine 2D FFT spectral estimate
-    fHz, kpix, power = disp.FFT_map_2D(t, images, center=(63.5,63.5))
+    fHz, kpix, power = disp.FFT_map_2D(t, images, center=(63.5,63.5), df=500)
     
-    # plot the data from 2D FFT dispersion estimate
-    ax, cb, im = disp.plot_FFT_2D_dispersion(fHz, kpix, power,
-                                             radius=disp.image_rcal()*10)
-       
-    
+    # plot the data from 2D FFT dispersion estimate at r = .5,1,1.5,2,... cm
+    for i in range(1,13):
+        print i*.5,'cm'
+        ax, cb, im = disp.plot_FFT_2D_dispersion(fHz, kpix, power,
+                                                 radius=i*.5)
     
 main()

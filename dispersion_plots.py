@@ -50,6 +50,9 @@ def read_movie(filepath=image_datafile()[1],
 
     if framelimits == None:
         framelimits = (0,1000)
+        ###
+        #framelimits = (0,10000)
+        ###
     # Read only the requested images, if framelim specified
     if filepath.split('.')[-1] == 'cine':
         print "Reading image file as type 'cine'"
@@ -224,11 +227,15 @@ def convert_to_polar(cimages,return_masked=1,replace_nan=0,verbose=0,center=None
     if center is None:
         if verbose:
             print "r = 0 set at image center."
-        xcenter = nx/2.
-        ycenter = ny/2.
+        #xcenter = nx/2.
+        #ycenter = ny/2.
+        ###
+        xcenter = (nx-1)/2.
+        ycenter = (ny-1)/2.
+        ###
     else:
         if verbose:
-            print "r = 0 set at (%d,%d) pixels."%(center[0],center[1])
+            print "r = 0 set at (%.1f,%.1f) pixels."%(center[0],center[1])
         xcenter,ycenter=center
     x,y = numpy.meshgrid(numpy.arange(nx,dtype=float),numpy.arange(ny,dtype=float))
     x -= xcenter

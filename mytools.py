@@ -505,8 +505,9 @@ def imview(image,x=None,xmin=None,xmax=None,y=None,ymin=None,ymax=None,
         if bare:
             ax.set_axis_off()
             fig.subplots_adjust(top=1.0,bottom=0.0,left=0.0,right=1.0)
-
-    pylab.show()
+    ###
+    #pylab.show()
+    ###
     return ax,cb,im
 
 

@@ -426,8 +426,8 @@ def FFT_map_2D(t,images,df=100.,center=None,
     return freq[0:nfft/2],kpix,numpy.fft.fftshift(numpy.abs(mean_power),axes=1)  #(nr,nk,nf)
 
 
-def plot_FFT_2D_dispersion(freq,kpix,fftpower,radius=1.5,mmax=20,kmax=500,
-                           fmax=50e3,angular=False,
+def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
+                           fmax=50e3, angular=False, fileprefix=False,
                            logscale=True,**plotkwargs):
     """
     Plots data from 2D FFT dispersion estimate.
@@ -473,7 +473,15 @@ def plot_FFT_2D_dispersion(freq,kpix,fftpower,radius=1.5,mmax=20,kmax=500,
         cb.set_label("Spectral Power, log10(uint$^2$)")
     else:
         cb.set_label("Spectral Power (uint$^2$)")
+    ###
+    # save dispersion plot as image file
+    if fileprefix != False:
+        dispplot = str(fileprefix) + "rad" + str(int(radius*10)) + "mm.jpg"
+        pylab.savefig(dispplot)
+    
+    ###
     pylab.show()
+    
     return ax,cb,im
     
 

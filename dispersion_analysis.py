@@ -33,12 +33,19 @@ def main():
     t, images = disp.read_movie(vidfile, framelimits=(0,10000))
     
     # average blocks to determine 2D FFT spectral estimate
-    fHz, kpix, power = disp.FFT_map_2D(t, images, center=(63.5,63.5), df=500)
+    fHz, kpix, power = disp.FFT_map_2D(t, images, center=(63.5,63.5), df=200)
+    
+    # cut off front and back of vidfile name
+    front = vidfile.find('/')
+    end = vidfile.find('f0t')
+    pref = "CSDX_plots/" + vidfile[front+1:end]
     
     # plot the data from 2D FFT dispersion estimate at r = .5,1,1.5,2,... cm
+    # save dispersion plot as jpg
     for i in range(1,13):
         print i*.5,'cm'
         ax, cb, im = disp.plot_FFT_2D_dispersion(fHz, kpix, power,
-                                                 radius=i*.5)
+                                                 radius=i*.5, angular=True,
+                                                 fileprefix=pref)
     
 main()

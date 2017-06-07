@@ -471,6 +471,9 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
 
     if logscale:
         cb.set_label("Spectral Power, log10(uint$^2$)")
+        ###
+        #im.set_clim(-7,-1)
+        ###
     else:
         cb.set_label("Spectral Power (uint$^2$)")
     ###

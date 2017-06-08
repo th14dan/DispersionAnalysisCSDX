@@ -328,10 +328,23 @@ def convert_to_cartesian(pimages,cshape=(112,112),mode='nearest',cval=numpy.nan,
 
 
 ######################STRAIGHT FFT CALCULATIONS FOR 2D SPECTRA ##################################
+def FFT_polar_conv(images, center=None,subtract_mean_frame=True):
+    nx = images.shape[1]
+    nr = nx/2
+    ntheta = nx
+    
+    print "Converting to polar image array..."
+    # Make sure mean is subtracted if flag is True
+    if subtract_mean_frame:
+        p_images = convert_to_polar(pylab.demean(images,axis=-1),verbose=True,center=center,ntheta=ntheta)[:nr,...]
+    else:
+        p_images = convert_to_polar(images,verbose=True,center=center,ntheta=ntheta)[:nr,...]
+    
+    return p_images, nr, ntheta
 
-def FFT_map_2D(t,images,df=100.,center=None,
-               refpixel=None,roll=None,normalized=True,
-               subtract_mean_frame=True):
+
+def FFT_map_2D(t,p_images,nr,ntheta,df=100.,
+               refpixel=None,roll=None,normalized=True):
     """
     Uses blocks of frames to average a 2D FFT
     spectral estimate.  Gives a better estimate 
@@ -345,8 +358,6 @@ def FFT_map_2D(t,images,df=100.,center=None,
     """
     
     # Calculate blocksize and frequency array
-    nx = images.shape[1]
-    ny = images.shape[0]
     dt = t[1] - t[0]
     nfft = 1./(df*dt)
     nfft = mytools.optlength(numpy.arange(nfft),check=True)
@@ -358,17 +369,9 @@ def FFT_map_2D(t,images,df=100.,center=None,
         print "Using reference pixel (r,theta)=%s to calculate CSD..."%str(refpixel)
         refr,reftheta = refpixel
 
-    # convert to polar image array
-    nr = nx/2
-    ntheta = nx
-    kpix = numpy.arange(-0.5*2*numpy.pi,0.5*2*numpy.pi,2*numpy.pi/ntheta) #1/2 wave per pixel is k_Nyquist
-
-    print "Converting to polar image array..."
-    # Make sure mean is subtracted if flag is True
-    if subtract_mean_frame:
-        images = convert_to_polar(pylab.demean(images,axis=-1),verbose=True,center=center,ntheta=ntheta)[:nr,...]
-    else:
-        images = convert_to_polar(images,verbose=True,center=center,ntheta=ntheta)[:nr,...]
+    # 1/2 wave per pixel is k_Nyquist
+    kpix = numpy.arange(-0.5*2*numpy.pi,0.5*2*numpy.pi,2*numpy.pi/ntheta)
+    
     # Form Hanning window array the same shape as image blocks
     window = numpy.tile(numpy.tile(numpy.hanning(nfft)[...,numpy.newaxis],
                                    ntheta)[...,numpy.newaxis],nr).transpose()
@@ -380,7 +383,7 @@ def FFT_map_2D(t,images,df=100.,center=None,
         print "Calculating Gxx for block %d"%ii
         # Pick out nfft-length block of images, window it, and FFT in time
         blockinds = numpy.arange(ii*nfft,ii*nfft+nfft,dtype=int)
-        block = images[...,blockinds]*window
+        block = p_images[...,blockinds]*window
         block = numpy.sqrt(8./3.)*numpy.fft.fft(block,axis=2)
         if refpixel is None:
             # FFT in theta
@@ -444,7 +447,10 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
         f = freq[0:fmaxindex]*2*numpy.pi
         k =  kpix/(image_rcal()*1e-2)  #convert to [m^-1]
         kminindex = mytools.find_closest(k,-kmax,value=False)
-        kmaxindex = mytools.find_closest(k,kmax,value=False)
+        ###
+        kmaxindex = mytools.find_closest(k,0,value=False)
+        ###
+        #kmaxindex = mytools.find_closest(k,kmax,value=False)
         
     else:
         f = freq[0:fmaxindex]
@@ -479,7 +485,7 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     ###
     # save dispersion plot as image file
     if fileprefix != False:
-        dispplot = str(fileprefix) + "rad" + str(int(radius*10)) + "mm.jpg"
+        dispplot = str(fileprefix) + "r" + str(int(radius*10)) + "mm.jpg"
         pylab.savefig(dispplot)
     
     ###

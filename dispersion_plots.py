@@ -463,7 +463,18 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     else:
         fftpower = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
     ax,cb,im = mytools.imview(fftpower,x=k[kminindex:kmaxindex],y=f[0:fmaxindex],**plotkwargs)
-    
+    ###
+    # add title (axis object)
+    b_ind = fileprefix.find("_f0t")
+    bfield = fileprefix[b_ind-5:b_ind]
+    df_start = fileprefix.find("df") +2
+    df_end = fileprefix.find("/",df_start)
+    df_val = fileprefix[df_start:df_end]
+    title = "B-field: %s    rad: %.1fcm    df: %s" % (bfield,radius,df_val)
+    ax.set_title(title)
+    # extend borders (get figure object from axis object)
+    ax.get_figure().subplots_adjust(left=0.15,right=0.875,bottom=0.125,top=0.9)
+    ###
     if angular:   
         ax.set_xlabel(r'$k_{\theta}$ (m$^{-1}$)')
         ax.set_ylabel('$\omega$ (s$^{-1}$)')

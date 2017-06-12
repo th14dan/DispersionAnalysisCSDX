@@ -31,16 +31,21 @@ def main():
              "B520_1600G_f0t10000.h5", "B580_1800G_f0t10000.h5",
              "B610_1900G_f0t10000.h5", "B650_2000G_f0t10000.h5"]
     
-    for k in range(len(files)):
+    #for k in range(len(files)):
+    for k in range(2,6):
         vidfile = "CSDX_vids/20151104_" + files[k]
         
         # read in movie file
         t, images = disp.read_movie(vidfile, framelimits=(0,10000))
         
-        # convert frames to polar
-        p_images,nr,ntheta = disp.FFT_polar_conv(images,center=(63.5,63.5))
+        # determine center of image with center of mass
+        xcom, ycom = disp.get_imaging_center(images)
+        print "CoM: ", xcom, ycom
         
-        delf = [100,200,500,1000]
+        # convert frames to polar
+        p_images,nr,ntheta = disp.FFT_polar_conv(images,center=(xcom,ycom))
+        
+        delf = [100,500,1000]
         for j in delf:
             # average blocks to determine 2D FFT spectral estimate
             fHz, kpix, power = disp.FFT_map_2D(t,p_images,nr,ntheta,df=j)
@@ -48,15 +53,15 @@ def main():
             # cut off front and back of vidfile name
             front = vidfile.find('/')
             end = vidfile.find('f0t')
-            pref = "CSDXplots_smallR_negKwide/df" + str(j) + vidfile[front:end]
+            pref = "CSDXplots_smalldr_CoM/df" + str(j) + vidfile[front:end]
             
             # plot the data from 2D FFT dispersion estimate at r = .5,1,1.5,2,... cm
             # save dispersion plot as jpg
-            for i in range(1,6):
+            for i in range(1,26):
             #for i in range(1,13):
-                print i*.5,'cm'
-                ax, cb, im = disp.plot_FFT_2D_dispersion(fHz, kpix, power,kmax=1000,
-                                                         radius=i*.5, angular=True,
-                                                         fileprefix=pref)
+                print i*.1,'cm'
+                ax,cb,im = disp.plot_FFT_2D_dispersion(fHz,kpix,power,kmax=1000,
+                                                       fmax=75e3,radius=i*.1,
+                                                       angular=True,fileprefix=pref)
             
 main()

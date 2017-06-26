@@ -32,7 +32,7 @@ def main():
              "B610_1900G_f0t10000.h5", "B650_2000G_f0t10000.h5"]
     
     #for k in range(len(files)):
-    for k in range(2,6):
+    for k in range(5,6):
         vidfile = "CSDX_vids/20151104_" + files[k]
         
         # read in movie file
@@ -45,7 +45,8 @@ def main():
         # convert frames to polar
         p_images,nr,ntheta = disp.FFT_polar_conv(images,center=(xcom,ycom))
         
-        delf = [100,500,1000]
+        #delf = [100,500,1000]
+        delf = [200]
         for j in delf:
             # average blocks to determine 2D FFT spectral estimate
             fHz, kpix, power = disp.FFT_map_2D(t,p_images,nr,ntheta,df=j)

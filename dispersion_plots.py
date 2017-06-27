@@ -1,5 +1,5 @@
 import pycine
-import numpy
+import numpy as np
 import time
 import scipy.ndimage
 from scipy.ndimage import gaussian_filter,median_filter
@@ -57,7 +57,7 @@ def read_movie(filepath=image_datafile()[1],
     if filepath.split('.')[-1] == 'cine':
         print "Reading image file as type 'cine'"
         data = pycine.Cine(filepath,framelimits=framelimits)
-        framelimits = numpy.asarray(framelimits)
+        framelimits = np.asarray(framelimits)
         framelimits -= framelimits[0]
         ts = data.time_float[range(*framelimits)]
         images = data.images.astype(float)
@@ -72,7 +72,7 @@ def read_movie(filepath=image_datafile()[1],
             framerate = f["Meta"].items()[14][1].value
             dt = 1./float(framerate)
             print "Creating time array from framerate = %d fps.  Dt = %2.1e"%(framerate,dt)
-            ts = numpy.arange(images.shape[-1],dtype=float)/framerate
+            ts = np.arange(images.shape[-1],dtype=float)/framerate
         f.close()
         print "Read frames "+str(framelimits)
     else:
@@ -158,14 +158,14 @@ def polar2cart(polar_coords,origin=(10,10)):
     specifying r,theta coordinate values"""
     r = polar_coords[0]
     theta = polar_coords[1]
-    xindex = r*numpy.cos(theta) + origin[0]
-    yindex = r*numpy.sin(theta) + origin[1]
+    xindex = r*np.cos(theta) + origin[0]
+    yindex = r*np.sin(theta) + origin[1]
     return xindex,yindex
 
-def get_polar_image_profile(cimage,thetamin=0,thetamax=2*numpy.pi,all_theta=0,
+def get_polar_image_profile(cimage,thetamin=0,thetamax=2*np.pi,all_theta=0,
                             ntheta=128,center=None):
     """pimage,poloidal_std = get_polar_image_profile(cimage,thetamin=0,
-                                 thetamax=2*numpy.pi,all_theta=0)
+                                 thetamax=2*np.pi,all_theta=0)
     
     Calculates evenly spaced r,theta arrays and maps these to matching
     (fractional) pixel locations in cartesian image using POLAR2CART.  Then
@@ -187,31 +187,31 @@ def get_polar_image_profile(cimage,thetamin=0,thetamax=2*numpy.pi,all_theta=0,
     if center is None:
         center = ((nx-1)/2., (ny-1)/2.)
     xcenter,ycenter=center
-    x,y = numpy.meshgrid(numpy.arange(nx,dtype=float),numpy.arange(ny,dtype=float))
+    x,y = np.meshgrid(np.arange(nx,dtype=float),np.arange(ny,dtype=float))
     x -= xcenter
     y -= ycenter
     #construct r,theta coordinates
-    rmax = numpy.sqrt(x.max()**2 + y.max()**2)
-    nr = numpy.ceil(rmax)
-    #nt = numpy.ceil(2*numpy.pi*40.)  #252 pixels - better to oversample 
+    rmax = np.sqrt(x.max()**2 + y.max()**2)
+    nr = np.ceil(rmax)
+    #nt = np.ceil(2*np.pi*40.)  #252 pixels - better to oversample 
     #than to undersample?
     nt=ntheta
-    r = numpy.linspace(0,nr,num=nr,endpoint=False)
-    theta0 = numpy.linspace(0,2*numpy.pi,num=nt,endpoint=False)
+    r = np.linspace(0,nr,num=nr,endpoint=False)
+    theta0 = np.linspace(0,2*np.pi,num=nt,endpoint=False)
     theta,r = pylab.meshgrid(theta0,r)
     #calculate x,y coordinates of r,theta positions
     xsamp,ysamp = polar2cart((r,theta),origin=center)
     #interpolate cimage to obtain values at xsamp,ysamp positions
     pimage = scipy.ndimage.map_coordinates(cimage.astype(float),(ysamp,xsamp),
-                                           mode='constant',cval=numpy.nan)
+                                           mode='constant',cval=np.nan)
 
-    pimage = numpy.ma.masked_invalid(pimage)
+    pimage = np.ma.masked_invalid(pimage)
     #pimage.shape = (nr,nt)
     if all_theta:
         return (pimage.squeeze(),theta0)
 
-    theta_condition = numpy.logical_and(theta0 >= thetamin,theta0 < thetamax)
-    pol_indices = numpy.logical_and(theta_condition,pimage >= 0)
+    theta_condition = np.logical_and(theta0 >= thetamin,theta0 < thetamax)
+    pol_indices = np.logical_and(theta_condition,pimage >= 0)
     
     #define errorbars as standard deviation along theta direction if averaged
     #return pimage,pimage
@@ -237,29 +237,29 @@ def convert_to_polar(cimages,return_masked=1,replace_nan=0,verbose=0,center=None
         if verbose:
             print "r = 0 set at (%.1f,%.1f) pixels."%(center[0],center[1])
         xcenter,ycenter=center
-    x,y = numpy.meshgrid(numpy.arange(nx,dtype=float),numpy.arange(ny,dtype=float))
+    x,y = np.meshgrid(np.arange(nx,dtype=float),np.arange(ny,dtype=float))
     x -= xcenter
     y -= ycenter
     nt = cimages.shape[2]
-    r = numpy.sqrt(x**2 + y**2)
+    r = np.sqrt(x**2 + y**2)
     rpolar,dummy = get_polar_image_profile(r,all_theta=1,center=center,ntheta=ntheta)
     nr = rpolar.shape[0]
     ntheta = rpolar.shape[1]
     nframes = cimages.shape[2]
 
-    pimages = numpy.zeros((nr,ntheta,nframes),float)
-    for frame in numpy.arange(nframes):
+    pimages = np.zeros((nr,ntheta,nframes),float)
+    for frame in np.arange(nframes):
         if verbose:
-            if numpy.mod(frame,1000)==0 : print 'Frame: '+str(frame)
+            if np.mod(frame,1000)==0 : print 'Frame: '+str(frame)
         pimages[...,frame] = get_polar_image_profile(cimages[...,frame],
                                                      all_theta=1,
                                                      center=center,
                                                      ntheta=ntheta)[0]
 
     if replace_nan:
-        return numpy.nan_to_num(pimages)
+        return np.nan_to_num(pimages)
     elif return_masked:
-        return numpy.ma.masked_invalid(pimages)
+        return np.ma.masked_invalid(pimages)
     else:
         return pimages
 
@@ -268,26 +268,26 @@ def cart2polar(cart_coords):
     """Returns values of polar coordinates corresponding to
     CART_COORDS.  CART_COORDS is a tuple of 2D arrays,
     specifying x,y coordinate values"""
-    x = numpy.asarray(cart_coords[0])
-    y = numpy.asarray(cart_coords[1])
-    r = numpy.sqrt(x**2 + y**2)
-    theta = numpy.arctan2(y,x)
+    x = np.asarray(cart_coords[0])
+    y = np.asarray(cart_coords[1])
+    r = np.sqrt(x**2 + y**2)
+    theta = np.arctan2(y,x)
     #make [-pi,pi] into [0,2pi]
-    neg_indices = numpy.where(theta<0)[0]
+    neg_indices = np.where(theta<0)[0]
     if theta.size == neg_indices.size:
-        theta += 2*numpy.pi
+        theta += 2*np.pi
     if neg_indices.size > 1:
-        theta[neg_indices] += 2*numpy.pi 
+        theta[neg_indices] += 2*np.pi 
     return r,theta
 
-def get_cartesian_image(pimage,cshape=(112,112),mode='nearest',cval=numpy.nan):
+def get_cartesian_image(pimage,cshape=(112,112),mode='nearest',cval=np.nan):
     """cimage = get_cartesian_image(pimage,cshape=(80,80))
     
     Inverse of get_polar_image_profile.  Used to transform 2D polar image
     to 2D cartesian image.  Uses scipy.ndimage.map_coordinates."""    
     nx = cshape[1]
     ny = cshape[0]
-    x,y = numpy.meshgrid(numpy.arange(nx)-nx/2,numpy.arange(ny) - ny/2)
+    x,y = np.meshgrid(np.arange(nx)-nx/2,np.arange(ny) - ny/2)
     
     #calculate r,theta coordinates of x,y positions
     rsamp,tsamp = cart2polar((x,y))
@@ -300,7 +300,7 @@ def get_cartesian_image(pimage,cshape=(112,112),mode='nearest',cval=numpy.nan):
                                            mode=mode,cval=cval)
     return cimage
 
-def convert_to_cartesian(pimages,cshape=(112,112),mode='nearest',cval=numpy.nan,
+def convert_to_cartesian(pimages,cshape=(112,112),mode='nearest',cval=np.nan,
                          replace_nan=1):
     # keep positions in pixels so that rmin,rmax can be indices
     nx = cshape[1]
@@ -309,15 +309,15 @@ def convert_to_cartesian(pimages,cshape=(112,112),mode='nearest',cval=numpy.nan,
 
     nan_test = pimages.max()
     if nan_test != nan_test:
-        pimages = numpy.nan_to_num(pimages)
+        pimages = np.nan_to_num(pimages)
         print "NaN to number coversion performed on input array."
-    cimages = numpy.zeros((ny,nx,nframes),float)
+    cimages = np.zeros((ny,nx,nframes),float)
     for frame in range(nframes):
         cimages[...,frame] = get_cartesian_image(pimages[...,frame],
                                                  cshape=cshape,mode=mode,
                                                  cval=cval)
     if replace_nan:
-        return numpy.nan_to_num(cimages)
+        return np.nan_to_num(cimages)
     else:
         return cimages
 
@@ -360,39 +360,39 @@ def FFT_map_2D(t,p_images,nr,ntheta,df=100.,
     # Calculate blocksize and frequency array
     dt = t[1] - t[0]
     nfft = 1./(df*dt)
-    nfft = mytools.optlength(numpy.arange(nfft),check=True)
+    nfft = mytools.optlength(np.arange(nfft),check=True)
     nblocks = t.size/nfft
     print "Number of time blocks: %d"%nblocks
     print "nfft = %d"%nfft
-    freq = numpy.fft.fftfreq(nfft,d=dt)
+    freq = np.fft.fftfreq(nfft,d=dt)
     if refpixel is not None:
         print "Using reference pixel (r,theta)=%s to calculate CSD..."%str(refpixel)
         refr,reftheta = refpixel
 
     # 1/2 wave per pixel is k_Nyquist
-    kpix = numpy.arange(-0.5*2*numpy.pi,0.5*2*numpy.pi,2*numpy.pi/ntheta)
+    kpix = np.arange(-0.5*2*np.pi,0.5*2*np.pi,2*np.pi/ntheta)
     
     # Form Hanning window array the same shape as image blocks
-    window = numpy.tile(numpy.tile(numpy.hanning(nfft)[...,numpy.newaxis],
-                                   ntheta)[...,numpy.newaxis],nr).transpose()
+    window = np.tile(np.tile(np.hanning(nfft)[...,np.newaxis],
+                                   ntheta)[...,np.newaxis],nr).transpose()
 
     # Iterate through blocks, windowing each,
     # and taking the fft.
-    mean_power = numpy.zeros((nr,ntheta,nfft/2),complex)
+    mean_power = np.zeros((nr,ntheta,nfft/2),complex)
     for ii in range(nblocks):
         print "Calculating Gxx for block %d"%ii
         # Pick out nfft-length block of images, window it, and FFT in time
-        blockinds = numpy.arange(ii*nfft,ii*nfft+nfft,dtype=int)
+        blockinds = np.arange(ii*nfft,ii*nfft+nfft,dtype=int)
         block = p_images[...,blockinds]*window
-        block = numpy.sqrt(8./3.)*numpy.fft.fft(block,axis=2)
+        block = np.sqrt(8./3.)*np.fft.fft(block,axis=2)
         if refpixel is None:
             # FFT in theta
             # No windowing is necessary because data is actually periodic in theta
-            block = numpy.fft.fft(block,axis=1)
-            #block  = numpy.fft.fft(numpy.tile(block.transpose(0,2,1),10).transpose(0,2,1),axis=1)
+            block = np.fft.fft(block,axis=1)
+            #block  = np.fft.fft(np.tile(block.transpose(0,2,1),10).transpose(0,2,1),axis=1)
             # Calculate one-sided (in frequency) autospectral density from X[f,k]
             #  (divide by nfft*dt later)
-            block = numpy.abs(block[...,0:nfft/2])**2
+            block = np.abs(block[...,0:nfft/2])**2
             block[...,1:-1] *= 2.
         else:
             # Use CSD instead of ASD
@@ -400,20 +400,20 @@ def FFT_map_2D(t,p_images,nr,ntheta,df=100.,
             if roll is None:                
                 # FFT in theta
                 # No windowing is necessary because data is actually periodic in theta
-                block = numpy.fft.fft(block,axis=1)
+                block = np.fft.fft(block,axis=1)
                 #Use a single pixel as a phase reference
                 refblock = block[refr,reftheta,:]
             else:
                 #Shift entire array in theta so that each pixel is compared
                 # to a pixel shifted in theta by ROLL.
-                refblock = numpy.roll(block,roll,axis=1)
+                refblock = np.roll(block,roll,axis=1)
                 # FFT in theta
                 # No windowing is necessary because data is actually periodic in theta
-                block = numpy.fft.fft(block,axis=1)
-                refblock = numpy.fft.fft(refblock,axis=1)
+                block = np.fft.fft(block,axis=1)
+                refblock = np.fft.fft(refblock,axis=1)
             # Calculate one-sided cross-spectral density from X[f,k],Y[f,k]
             #  (divide by nfft*dt later)
-            block = 2*numpy.conj(block[...,0:nfft/2])*refblock[...,0:nfft/2]
+            block = 2*np.conj(block[...,0:nfft/2])*refblock[...,0:nfft/2]
         # Add to mean array
         mean_power += block
 
@@ -424,34 +424,34 @@ def FFT_map_2D(t,p_images,nr,ntheta,df=100.,
         # calculate summed spectral power at each radius
         psum = mean_power.sum(axis=2).sum(axis=1)
         # divide by this to give normalized f/k spectrum at each r
-        mean_power /= numpy.tile(psum.reshape(nr,1,1),(ntheta,nfft/2))
+        mean_power /= np.tile(psum.reshape(nr,1,1),(ntheta,nfft/2))
 
-    return freq[0:nfft/2],kpix,numpy.fft.fftshift(numpy.abs(mean_power),axes=1)  #(nr,nk,nf)
+    return freq[0:nfft/2],kpix,np.fft.fftshift(np.abs(mean_power),axes=1)  #(nr,nk,nf)
 
 
 def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
                            fmax=50e3, angular=False, fileprefix=False,
-                           logscale=True,**plotkwargs):
+                           logscale=True, pca=False,**plotkwargs):
     """
     Plots data from 2D FFT dispersion estimate.
 
     ax,cb,im = plot_FFT_2D_dispersion(fHz,kpix,fftpower,radius=image_rcal()*10)
     """
-    r = numpy.arange(fftpower.shape[0])*image_rcal() #cm
+    r = np.arange(fftpower.shape[0])*image_rcal() #cm
     rindex = mytools.find_closest(r,radius,value=False)
     r0 = r[rindex]*1e-2 # put in meters
     fmaxindex = mytools.find_closest(freq,fmax,value=False)
     ntheta = fftpower.shape[1]
     
     if angular:
-        f = freq[0:fmaxindex]*2*numpy.pi
+        f = freq[0:fmaxindex]*2*np.pi
         k =  kpix/(image_rcal()*1e-2)  #convert to [m^-1]
         kminindex = mytools.find_closest(k,-kmax,value=False)
         ###
         kmaxindex = mytools.find_closest(k,0,value=False)
+        k=k[kminindex:kmaxindex] # originally k unchanged
         ###
         #kmaxindex = mytools.find_closest(k,kmax,value=False)
-        
     else:
         f = freq[0:fmaxindex]
         k = kpix*rindex #m = k*r, can calculate in pixels
@@ -459,10 +459,58 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
         kmaxindex = mytools.find_closest(k,mmax,value=False)
 
     if logscale:
-        fftpower = numpy.log10(fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose())
+        power_img = np.log10(fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose())
     else:
-        fftpower = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
-    ax,cb,im = mytools.imview(fftpower,x=k[kminindex:kmaxindex],y=f[0:fmaxindex],**plotkwargs)
+        power_img = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
+    
+    ax,cb,im = mytools.imview(power_img,x=k,y=f[0:fmaxindex],**plotkwargs)
+    #ax,cb,im = mytools.imview(power_img,x=k[kminindex:kmaxindex],y=f[0:fmaxindex],**plotkwargs)
+    
+    ###
+    if pca == True:  # if true, find/plot centroid and principal component
+        power_pca = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
+        # logscale version too heavily influenced by window size 
+        #power_pca = np.log10(fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose())
+        #power_pca -= np.amin(power_pca)
+        
+        # determine find center of mass of dispersion plot
+        ycom, xcom = scipy.ndimage.center_of_mass(power_pca)
+        com = np.array([k[int(xcom)], f[int(ycom)]])
+        ax.plot([com[0]], [com[1]], 'ko')
+                
+        # create to nx2 coord array (n = # of pts); create nx1 array of weights
+        coords = np.dstack(np.meshgrid(k,f)).reshape((-1,2),order='F')
+        weights = power_pca.reshape(-1,1)
+        
+        # subtract CoM vector from coordinate; apply weights
+        weighted = (coords-com) * np.sqrt(weights)
+        
+        # calculate total power & covariance matrix; find eigenvectors/values
+        tot_power = power_pca.sum()
+        cov_mat = (weighted).T.dot(weighted) / tot_power
+        eig_vals, vects = np.linalg.eig(cov_mat)
+        print "tot_power = ", tot_power
+        print "  cov_mat = ", cov_mat
+        print " eig_vals = ", eig_vals
+        print "eig_vects = ", vects
+        print
+        
+        # identify principle component & draw line along it through CoM
+        max_i = np.argmax(eig_vals)
+        slope = -vects[max_i][1] / vects[max_i][0]
+        # eigenvector assumes positive slope from top left to bottom right
+        # slope is multiplied by -1 for this reason
+        y_int = com[1] - (slope * com[0])
+        x1 = 0
+        y1 = y_int
+        x2 = -1000
+        y2 = slope * -1000 + y_int
+        print "slope = ", slope
+        print "y_int = ", y_int
+        print
+        ax.plot([x1,x2], [y1,y2], 'b--')
+    ###
+    
     ###
     # add title (axis object)
     b_ind = fileprefix.find("_f0t")
@@ -470,15 +518,20 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     df_start = fileprefix.find("df") +2
     df_end = fileprefix.find("/",df_start)
     df_val = fileprefix[df_start:df_end]
-    title = "B-field: %s    rad: %.1fcm    df: %s" % (bfield,radius,df_val)
+    if pca == True:
+        title = ("B-field: %s    rad: %.1fcm    df: %s\nCoM: (%.1f, %.1f)    slope: %.1f" 
+                 % (bfield, radius, df_val, com[0], com[1], slope))
+    else:
+        title = "B-field: %s    rad: %.1fcm    df: %s" % (bfield,radius,df_val)
     ax.set_title(title)
     # extend borders (get figure object from axis object)
     ax.get_figure().subplots_adjust(left=0.15,right=0.875,bottom=0.125,top=0.9)
     ###
+    
     if angular:   
         ax.set_xlabel(r'$k_{\theta}$ (m$^{-1}$)')
         ax.set_ylabel('$\omega$ (s$^{-1}$)')
-        ax.set_xlim(k[kminindex],k[kmaxindex])
+        ax.set_xlim(k[0],k[-1])
         ax.set_ylim(0,f.max())
     else:
         ax.set_xlabel('Mode number')                                                
@@ -538,9 +591,9 @@ def phase_map_FFT(images,refpix=(60,40),
     # Get Pxx for coherence calculation
     Pxx,f = mytools.get_csd(refpixel,refpixel,**csd_kwargs)
     # Use size to allocate space for data
-    avgphase = numpy.zeros((ny,nx,Pxx.size),float)
-    avgpower = numpy.zeros((ny,nx,Pxx.size),float)
-    coherence = numpy.zeros((ny,nx,Pxx.size),float)
+    avgphase = np.zeros((ny,nx,Pxx.size),float)
+    avgpower = np.zeros((ny,nx,Pxx.size),float)
+    coherence = np.zeros((ny,nx,Pxx.size),float)
    
     for x in range(nx):
         print "Calculating column %d"%x
@@ -554,9 +607,9 @@ def phase_map_FFT(images,refpix=(60,40),
                 Pxy = Pxy.squeeze()
                 Pyy = Pyy.squeeze()
                 Pxx = Pxx.squeeze()
-            coherence[y,x,...] = numpy.sqrt(numpy.abs(Pxy)**2/numpy.abs(Pxx*Pyy))
-            avgpower[y,x,...] = numpy.abs(Pxy)**2
-            avgphase[y,x,...] = numpy.angle(Pxy)
+            coherence[y,x,...] = np.sqrt(np.abs(Pxy)**2/np.abs(Pxx*Pyy))
+            avgpower[y,x,...] = np.abs(Pxy)**2
+            avgphase[y,x,...] = np.angle(Pxy)
 
     return f,avgpower,avgphase,coherence,nd
 
@@ -581,21 +634,21 @@ def plot_phase_map_dispersion(shot,radius,f,avgphase,coherence,
         avgpower = avgpower.mean(axis=0).mean(axis=0)
         k,spectrum = get_annular_k_spectrogram(avgphase*avgpower,sigma=sigma,center=center)
         
-    r = numpy.arange(spectrum.shape[0])*image_rcal()
+    r = np.arange(spectrum.shape[0])*image_rcal()
     rindex = mytools.find_closest(r,radius,value=False)
     pcoherence = convert_to_polar(coherence)
     meancoherence = pcoherence[0:rindex,...].mean(axis=0).mean(axis=0)
     print "Using rindex=%d for r=%2.1f."%(rindex,radius)
     nfft=spectrum.shape[1]
     # choose r index, and calculate spectral power
-    power = numpy.abs(spectrum[rindex,nfft/2:,...].squeeze().transpose())**2
+    power = np.abs(spectrum[rindex,nfft/2:,...].squeeze().transpose())**2
     if logscale:
-        power = numpy.log10(power)
+        power = np.log10(power)
     # define k and omega
-    m = numpy.arange(power.shape[1])
+    m = np.arange(power.shape[1])
     if angular:
         k = m/(r[rindex]*1e-2) #2pi/wavelength [m] = 2*pi*m/2*pi*radius
-        w = 2*numpy.pi*f
+        w = 2*np.pi*f
         # make intensity plot
         ax,cb,im = mytools.imview(power,aspect='auto',symcb=False,
                                   x=k,y=w,cmap=cmap,**plotkwargs)
@@ -611,9 +664,9 @@ def plot_phase_map_dispersion(shot,radius,f,avgphase,coherence,
         ax.set_ylabel('$f$ (Hz)')  
     
     if plot_points: 
-        f_indices = numpy.where(meancoherence > cthresh)
+        f_indices = np.where(meancoherence > cthresh)
         # or just take max
-        k_corr = numpy.zeros(f.size)
+        k_corr = np.zeros(f.size)
         for ii in range(f.size):
             k_corr[ii] = k[power[ii,:].argmax()]
         #return k_corr,f,f_indices,power
@@ -622,7 +675,7 @@ def plot_phase_map_dispersion(shot,radius,f,avgphase,coherence,
 
     ax.set_title('CSD dispersion estimate, '+
                  'shot %s, framelimits=%s, \n'%(shot,flims)+
-                 'df=%d Hz, nfft_k=%d, r=%2.1fcm'%(numpy.diff(f).mean(),
+                 'df=%d Hz, nfft_k=%d, r=%2.1fcm'%(np.diff(f).mean(),
                                                    nfft,radius),y=1.01)
     #ax.get_figure().subplots_adjust(top=0.85)
     if logscale:
@@ -635,7 +688,7 @@ def plot_phase_map_dispersion(shot,radius,f,avgphase,coherence,
     if not full_plot:
         if angular:
             ax.set_xlim(0,15./(r[rindex]*1e-2))
-            ax.set_ylim(0,2*numpy.pi*40000)
+            ax.set_ylim(0,2*np.pi*40000)
         else:
             ax.set_xlim(-0.5,15)
             ax.set_ylim(0,40000)
@@ -661,21 +714,21 @@ def get_avg_annular_k_spectrogram(cimages,rmin=12,rmax=30,return_polar=0,
     else:
         xcenter = center[0]
         ycenter = center[1]
-    x,y = numpy.meshgrid(numpy.arange(nx,dtype=float),numpy.arange(ny,dtype=float))
+    x,y = np.meshgrid(np.arange(nx,dtype=float),np.arange(ny,dtype=float))
     x -= xcenter
     y -= ycenter
     nt = cimages.shape[2]
-    r = numpy.sqrt(x**2 + y**2)
+    r = np.sqrt(x**2 + y**2)
     rpolar,dummy = get_polar_image_profile(r,all_theta=1)
     nr = rpolar.shape[0]
-    ntheta = int(numpy.floor(2*numpy.pi*rmin))
+    ntheta = int(np.floor(2*np.pi*rmin))
 
     print "Converting image to polar coordinates..."
-    theta_array = numpy.zeros((ntheta,nt),float)
-    for i in numpy.arange(nt):
+    theta_array = np.zeros((ntheta,nt),float)
+    for i in np.arange(nt):
         pimage,err = get_polar_image_profile(cimages[...,i],
                                              all_theta=1,ntheta=ntheta)
-        if numpy.mod(i,100)==0 : print 'Frame: '+str(i)
+        if np.mod(i,100)==0 : print 'Frame: '+str(i)
         # average in r to get 1d theta array
         theta_row = pimage[rmin:rmax,:].mean(axis=0) 
         if no_dc:
@@ -686,13 +739,13 @@ def get_avg_annular_k_spectrogram(cimages,rmin=12,rmax=30,return_polar=0,
         return ntheta,theta_array  #makes nice brightness,t images
     
     print "Calculating fourier transform along arcs..."
-    amplitude = numpy.fft.fftshift(numpy.fft.fft(theta_array,axis=0),axes=[0])
-    dtheta = 2.*numpy.pi/ntheta 
-    ds = numpy.mean([rmin,rmax])*dtheta
+    amplitude = np.fft.fftshift(np.fft.fft(theta_array,axis=0),axes=[0])
+    dtheta = 2.*np.pi/ntheta 
+    ds = np.mean([rmin,rmax])*dtheta
     #make k values into mode numbers by setting 
     #k= 1/ntheta (pixels)^-1 -> k=1 (mode)
-    k = numpy.fft.fftshift(numpy.fft.fftfreq(ntheta,d=ds))*ntheta
-    return k,numpy.ma.masked_invalid(amplitude)
+    k = np.fft.fftshift(np.fft.fftfreq(ntheta,d=ds))*ntheta
+    return k,np.ma.masked_invalid(amplitude)
 
 
 def get_annular_k_spectrogram(cimages,center=None,return_polar=0,
@@ -709,21 +762,21 @@ def get_annular_k_spectrogram(cimages,center=None,return_polar=0,
     else:
         xcenter = center[0]
         ycenter = center[1]
-    x,y = numpy.meshgrid(numpy.arange(nx,dtype=float),numpy.arange(ny,dtype=float))
+    x,y = np.meshgrid(np.arange(nx,dtype=float),np.arange(ny,dtype=float))
     x -= xcenter
     y -= ycenter
     nt = cimages.shape[2]
-    r = numpy.sqrt(x**2 + y**2)
+    r = np.sqrt(x**2 + y**2)
     rpolar,dummy = get_polar_image_profile(r,all_theta=1,ntheta=ntheta)
     nr = rpolar.shape[0]
     ntheta = rpolar.shape[1]
-    pimages = numpy.zeros((nr,ntheta,nt),float)
+    pimages = np.zeros((nr,ntheta,nt),float)
 
     print "Converting image to polar coordinates..."
     print "Center of frame placed at "+str((xcenter,ycenter))
-    for i in numpy.arange(nt):
+    for i in np.arange(nt):
         pimages[...,i],err = get_polar_image_profile(cimages[...,i],all_theta=1,ntheta=ntheta)
-        if numpy.mod(i,500)==0 : print 'Frame: '+str(i)
+        if np.mod(i,500)==0 : print 'Frame: '+str(i)
 
     # smooth with given kernel if provided
     if sigma is not None:
@@ -740,12 +793,12 @@ def get_annular_k_spectrogram(cimages,center=None,return_polar=0,
     
     print "Calculating fourier transform along arcs..."
     print "Amplitude array shape: ",pimages.shape
-    amplitude = numpy.fft.fftshift(numpy.fft.fft(pimages,axis=1),axes=[1])
+    amplitude = np.fft.fftshift(np.fft.fft(pimages,axis=1),axes=[1])
     #calculate mode number spectrum
     #lambda=ntheta corresponds to m=1, lowest mode is 1/ntheta*dtheta = 1/ntheta
     #so calculate spectrum in inverse pixels, then multiply by ntheta
-    k = numpy.fft.fftshift(numpy.fft.fftfreq(ntheta,d=1))*ntheta
-    return k,numpy.ma.masked_invalid(amplitude)
+    k = np.fft.fftshift(np.fft.fftfreq(ntheta,d=1))*ntheta
+    return k,np.ma.masked_invalid(amplitude)
 
 
 
@@ -779,18 +832,18 @@ def PSD_significant_points(psd_input,threshold=0.0,fmin=0,
         # fft estimate
         f,fftpower = psd_input
         # setup arrays and find indices
-        rtmp = numpy.arange(fftpower.shape[0])*image_rcal()
+        rtmp = np.arange(fftpower.shape[0])*image_rcal()
         rindex = mytools.find_closest(rtmp,r,value=False)
         if angular:
-            wpoints = 2*numpy.pi*f # convert to w units 
+            wpoints = 2*np.pi*f # convert to w units 
         else:
             wpoints = f          
         fminindex = mytools.find_closest(f,fmin,value=False)
-        kpoints = numpy.zeros_like(f) 
-        power = numpy.zeros_like(f)
+        kpoints = np.zeros_like(f) 
+        power = np.zeros_like(f)
         # calculate 'background' as linear fit to total power in each
         # frequency band (smoothed)
-        powersum = numpy.log10(fftpower[rindex,...].sum(axis=0)) #total power in each freq band
+        powersum = np.log10(fftpower[rindex,...].sum(axis=0)) #total power in each freq band
         
     elif len(psd_input) == 3:
         #two-point estimate
@@ -798,11 +851,11 @@ def PSD_significant_points(psd_input,threshold=0.0,fmin=0,
         # setup arrays and find indices
         wpoints = fbins
         fminindex = mytools.find_closest(fbins,fmin,value=False)
-        kpoints = numpy.zeros_like(fbins) 
-        power = numpy.zeros_like(fbins)  
+        kpoints = np.zeros_like(fbins) 
+        power = np.zeros_like(fbins)  
         # calculate 'background' as linear fit to total power in each
         # frequency band (smoothed) vs frequency
-        powersum = numpy.log10(H.sum(axis=1)) #total power in each freq band
+        powersum = np.log10(H.sum(axis=1)) #total power in each freq band
     
     else:
         print "\nInputError: PSD_INPUT length is %d \n"%len(psd_input)
@@ -812,13 +865,13 @@ def PSD_significant_points(psd_input,threshold=0.0,fmin=0,
     nf = powersum.size
     if smlen is None:
         smlen = round(nf*smoothfrac)
-    if numpy.mod(smlen,2) == 0:
+    if np.mod(smlen,2) == 0:
         smlen += 1
     filtsum = median_filter(powersum,size=smlen)
     if return_filtsum:
         return wpoints,filtsum
-    fit = numpy.polyfit(wpoints[fminindex:],filtsum[fminindex:],fitorder)
-    background = numpy.poly1d(fit)(wpoints)
+    fit = np.polyfit(wpoints[fminindex:],filtsum[fminindex:],fitorder)
+    background = np.poly1d(fit)(wpoints)
     #background=filtsum
     print ("Points with spectral power less than %d%% "%(threshold*100) + 
            "above linear background are suppressed.")
@@ -842,7 +895,7 @@ def PSD_significant_points(psd_input,threshold=0.0,fmin=0,
             kpoints[ii] = kbins[mpoint]
                 
     #return wpoints,kpoints,(power) where above threshold
-    condition = powersum > (1. + numpy.sign(background)*threshold)*background
+    condition = powersum > (1. + np.sign(background)*threshold)*background
     if return_power:
         return kpoints[condition],wpoints[condition],power[condition]
     else:
@@ -873,7 +926,7 @@ def best_fit_drift_disp(r,freq,fftpower,
                                                    threshold=threshold,
                                                    fmin=fmin,r=r,
                                                    return_power=True)
-            sigmas = numpy.log10(1./powers)
+            sigmas = np.log10(1./powers)
         else:
             print "Calculating significant points...."
             kp,wp = PSD_significant_points((freq,fftpower),
@@ -881,25 +934,25 @@ def best_fit_drift_disp(r,freq,fftpower,
                                            fmin=fmin,r=r)     
             if sigmas == 1:
                 print "Setting sigmas to one...."
-                sigmas = numpy.ones_like(wp)
+                sigmas = np.ones_like(wp)
             else:
                 # check length
                 if len(sigmas) != len(wp):
                     print "Length of provided weight array must match number of points."
                     print "Setting sigmas to one instead...."
-                    sigmas = numpy.ones_like(wp)
+                    sigmas = np.ones_like(wp)
     else:
         print "Using provided (kp,wp) as significant points to fit...."
         if sigmas is None:
             print "If weighting is desired for provided points, sigmas must also be provided."
             print "Setting sigmas to one...."
-            sigmas = numpy.ones_like(wp)
+            sigmas = np.ones_like(wp)
         else:
             # check length
             if len(sigmas) != len(wp):
                 print "Length of provided weight array must match number of points."
                 print "Setting sigmas to one instead...."
-                sigmas = numpy.ones_like(wp)
+                sigmas = np.ones_like(wp)
 
     # limit to points in frequency range
     wpindices = mytools.in_limits(wp,wlims)
@@ -924,8 +977,8 @@ def best_fit_drift_disp(r,freq,fftpower,
         sigmas = sigmas[kexpindices]
     
     #get theory points to fit
-    mmin = int(numpy.floor(klims[0]*r*1e-2))
-    mmax = int(numpy.ceil(klims[1]*r*1e-2))
+    mmin = int(np.floor(klims[0]*r*1e-2))
+    mmax = int(np.ceil(klims[1]*r*1e-2))
     ktheory,wtheory = Ellis_dispersion(shot,B_T,r,center,angular=True,
                                        mrange=range(mmin,mmax),
                                        k_eval=kexp)
@@ -933,7 +986,7 @@ def best_fit_drift_disp(r,freq,fftpower,
     def wshift(vt,kfit,wfit):
         wadj = (wfit/kfit - vt)*kfit
         #set infinite or nan values to zero
-        #infindex = numpy.logical_not(numpy.isfinite(wadj))
+        #infindex = np.logical_not(np.isfinite(wadj))
         wadj[kfit==0] = 0
         return wadj
 
@@ -991,7 +1044,7 @@ def get_KH_freq(k,r1,r2,rcm,vbest,v1=None,v2=None):
      so that V(RCM) =  VBEST.  
      
      """
-    rv = numpy.arange(0,10,0.1)
+    rv = np.arange(0,10,0.1)
     vt,vterr = model_ExB(rv*1e-2,900.)
     vadj = vt[mytools.find_closest(rv,rcm,value=False)] - vbest
     vt -= vadj
@@ -1007,7 +1060,7 @@ def get_KH_freq(k,r1,r2,rcm,vbest,v1=None,v2=None):
         v2 = vt[mytools.find_closest(rv,r2,value=False)]
     print "Using velocities (%3.1f,%3.1f) m/s"%(v1,v2)
     print "Using density fractions (%3.1f,%3.1f)"%(alpha1,alpha2)
-    w = numpy.abs(k*(alpha1*v1 + alpha2*v2))
+    w = np.abs(k*(alpha1*v1 + alpha2*v2))
     return w
 
 
@@ -1032,8 +1085,8 @@ def phase_uncertainty_distribution(shot,coherence,nd,rlist,center):
 
     """
     # Calculate phase standard deviation in polar array
-    phasestd = (numpy.sqrt(1 - coherence**2)/
-                (numpy.abs(coherence)*numpy.sqrt(2*nd)))
+    phasestd = (np.sqrt(1 - coherence**2)/
+                (np.abs(coherence)*np.sqrt(2*nd)))
     ppstd = convert_to_polar(phasestd,center=center)
 
     ax = mytools.new_plot()
@@ -1043,13 +1096,13 @@ def phase_uncertainty_distribution(shot,coherence,nd,rlist,center):
 
     for ii,rlims in enumerate(rlist):
         rmin,rmax = rlims
-        rmincm,rmaxcm = numpy.round(numpy.asarray(rlims)*image_rcal(),1)
+        rmincm,rmaxcm = np.round(np.asarray(rlims)*image_rcal(),1)
         rlabel = "rlim=[%d,%d]px/[%2.1f,%2.1f]cm"%(rmin,rmax,rmincm,rmaxcm)
         N,bins,patches = pylab.hist(ppstd[rmin:rmax,...].flatten(),bins=157,
-                                    range=[0,numpy.pi/2.],log=False,
+                                    range=[0,np.pi/2.],log=False,
                                     alpha=(1.-ii/10.)/2.,label=rlabel)
     ax.legend(labelspacing=0.2,prop=dict(size=14)).draggable()
-    ax.set_xticks(numpy.array([ 0. ,  0.125,  0.25,  0.375,  .5])*numpy.pi)
+    ax.set_xticks(np.array([ 0. ,  0.125,  0.25,  0.375,  .5])*np.pi)
     ax.set_xticklabels(["0","$\pi$/8","$\pi$/4","3$\pi$/8","$\pi$/2"])
     pylab.show()
 
@@ -1066,8 +1119,8 @@ def coherence_uncertainty_distribution(shot,coherence,nd,rlist,center):
 
     """
     # Calculate phase standard deviation in polar array
-    phasestd = (numpy.sqrt(1 - coherence**2)/
-                (numpy.abs(coherence)*numpy.sqrt(2*nd)))
+    phasestd = (np.sqrt(1 - coherence**2)/
+                (np.abs(coherence)*np.sqrt(2*nd)))
     ppstd = convert_to_polar(phasestd,center=center)
 
     ax = mytools.new_plot()
@@ -1077,10 +1130,10 @@ def coherence_uncertainty_distribution(shot,coherence,nd,rlist,center):
 
     for ii,rlims in enumerate(rlist):
         rmin,rmax = rlims
-        rmincm,rmaxcm = numpy.round(numpy.asarray(rlims)*image_rcal(),1)
+        rmincm,rmaxcm = np.round(np.asarray(rlims)*image_rcal(),1)
         rlabel = "rlim=[%d,%d]px/[%2.1f,%2.1f]cm"%(rmin,rmax,rmincm,rmaxcm)
         N,bins,patches = pylab.hist(ppstd[rmin:rmax,...].flatten(),bins=157,
-                                    range=[0,numpy.pi/2.],log=False,
+                                    range=[0,np.pi/2.],log=False,
                                     alpha=(1.-ii/10.)/2.,label=rlabel)
     ax.legend(labelspacing=0.2,prop=dict(size=14)).draggable()
     ax.set_xticklabels(["0","$\pi$/8","$\pi$/4","3$\pi$/8","$\pi$/2"])
@@ -1100,8 +1153,8 @@ def phase_uncertainty_vs_freq(shot,f,coherence,nd,rlist,center):
     phase_uncertainty_vs_freq(shot,coherence,nd,rlist,center)
     """
     # Calculate phase standard deviation in polar array
-    phasestd = (numpy.sqrt(1 - coherence**2)/
-                (numpy.abs(coherence)*numpy.sqrt(2*nd)))
+    phasestd = (np.sqrt(1 - coherence**2)/
+                (np.abs(coherence)*np.sqrt(2*nd)))
     ppstd = convert_to_polar(phasestd,center=center)
 
     ax = mytools.new_plot()
@@ -1111,14 +1164,14 @@ def phase_uncertainty_vs_freq(shot,f,coherence,nd,rlist,center):
 
     for ii,rlims in enumerate(rlist):
         rmin,rmax = rlims
-        rmincm,rmaxcm = numpy.round(numpy.asarray(rlims)*image_rcal(),1)
+        rmincm,rmaxcm = np.round(np.asarray(rlims)*image_rcal(),1)
         rlabel = "rlim=[%d,%d]px/[%2.1f,%2.1f]cm"%(rmin,rmax,rmincm,rmaxcm)
         ax.plot(f,ppstd[rmin:rmax,...].mean(axis=0).mean(axis=0),label=rlabel)
 
     ax.legend(labelspacing=0.2,prop=dict(size=14)).draggable()
-    ax.set_yticks(numpy.array([ 0. ,  0.125,  0.25,  0.375,  .5])*numpy.pi)
+    ax.set_yticks(np.array([ 0. ,  0.125,  0.25,  0.375,  .5])*np.pi)
     ax.set_yticklabels(["0","$\pi$/8","$\pi$/4","3$\pi$/8","$\pi$/2"])
-    ax.set_ylim(0,numpy.pi/2.)
+    ax.set_ylim(0,np.pi/2.)
     pylab.show()
 
 

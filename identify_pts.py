@@ -1,8 +1,8 @@
 """
 Written by Daniel Green
-Created on Mon Jun 26 15:02:59 2017
+Created on Thu Jun 29 16:24:02 2017
 
-Purpose:  Identify centroid and principle component of disperstion plots.
+Purpose:  Identify and plot max frequency values at each wave number.
 """
 ###############################################################################
 import dispersion_plots as disp
@@ -23,13 +23,13 @@ def main():
              "B610_1900G_f0t10000.h5", "B650_2000G_f0t10000.h5"]
     
     # iterate through video files (only first 3; fluctation most pronounced)
-    for k in range(1):
+    for k in range(3):
     #for k in range(3):
         vidfile = "CSDX_vids/20151104_" + files[k]
 
         # read in movie file
-        #t, images = disp.read_movie(vidfile, framelimits=(0,2000))
         t, images = disp.read_movie(vidfile, framelimits=(0,10000))
+        #t, images = disp.read_movie(vidfile, framelimits=(0,10000))
         
         # determine center of image with center of mass
         xcom, ycom = disp.get_imaging_center(images)
@@ -39,12 +39,12 @@ def main():
         p_images,nr,ntheta = disp.FFT_polar_conv(images,center=(xcom,ycom))
         
         # average blocks to determine 2D FFT spectral estimate
-        fHz, kpix, power = disp.FFT_map_2D(t,p_images,nr,ntheta,df=200)
+        fHz, kpix, power = disp.FFT_map_2D(t, p_images, nr, ntheta, df=500)
         
         # cut off front and back of vidfile name
         front = vidfile.find('/')
         end = vidfile.find('f0t')
-        pref = "CSDXplots_PCA_thres_avg/df" + str(200) + vidfile[front:end]
+        pref = "CSDXplots_maxf_3pts_peaks/df" + str(500) + vidfile[front:end]
 
         # plot the data from 2D FFT dispersion estimate at r = .6,.7,...,2.0 cm
         # save dispersion plot as jpg
@@ -53,8 +53,8 @@ def main():
             print i*.1,'cm'
             ax,cb,im = disp.plot_FFT_2D_dispersion(fHz, kpix, power, kmax=1000,
                                                    fmax=75e3, radius=i*.1,
-                                                   angular=True, pca=True,
-                                                   mask=True, filepref=pref)
+                                                   angular=True, numpts=3,
+                                                   filepref=pref)
     
     
 main()

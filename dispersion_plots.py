@@ -428,10 +428,118 @@ def FFT_map_2D(t,p_images,nr,ntheta,df=100.,
 
     return freq[0:nfft/2],kpix,np.fft.fftshift(np.abs(mean_power),axes=1)  #(nr,nk,nf)
 
+    
+def plot_mask_PCA(power, k, f, ax, log=False, mask=False):
+    if mask:
+        # remove low-k plot region; apply gaussian filter; convert to logscale
+        # currently using sigma = (sig_y,sig_x) = (4,1)
+        sigma = (4,1)
+        power_gauss = np.log10(gaussian_filter(power[:,:len(k)-3], sigma))
+        
+        # create mask by applying threshold to blurred logscale image
+        # threshold: median of vals, avg of vals, or avg of min/max vals
+        thres = np.mean(power_gauss)
+        #thres = np.median(power_gauss)
+        #thres = (np.amax(power_gauss) + np.amin(power_gauss)) / 2
+        
+        mask_bg = np.where((power_gauss > thres), 1, 0)
+        # concatenate zeros for low-k region so mask matches image shape
+        lowk_zeros = np.zeros((len(f),3))
+        mask_bg = np.concatenate((mask_bg, lowk_zeros), axis=1)
+    else:
+        # if no mask is requested, mask_filt will have no effect
+        mask_bg = 1
+    
+    power = mask_bg * power
+        
+    if log == True: # logscale version too heavily influenced by window size 
+        power = np.log10(power)
+        if np.amin(power) < 0:
+            power -= np.amin(power)
+        
+    # determine center of mass of dispersion plot
+    ycom, xcom = scipy.ndimage.center_of_mass(power)
+    com = np.array([k[int(xcom)], f[int(ycom)]])
+    ax.plot([com[0]], [com[1]], 'ko')
+    
+    # create to nx2 coord array (n = # of pts); create nx1 array of weights
+    coords = np.dstack(np.meshgrid(k,f)).reshape((-1,2),order='F')
+    weights = power.reshape(-1,1)
+    # subtract CoM vector from coordinate; apply weights
+    weighted = (coords-com) * np.sqrt(weights)
+    # calculate total power & covariance matrix; find eigenvectors/values
+    tot_power = power.sum()
+    cov_mat = (weighted).T.dot(weighted) / tot_power
+    eig_vals, vects = np.linalg.eig(cov_mat)
+    
+    # identify principle component & draw line along it through CoM
+    max_i = np.argmax(eig_vals)
+    slope = -vects[max_i][1] / vects[max_i][0]
+    # eigenvector assumes positive slope from top left to bottom right
+    # slope is multiplied by -1 for this reason
+    y_int = com[1] - (slope * com[0])
+    x1 = 0
+    y1 = y_int
+    x2 = -1000
+    y2 = slope * -1000 + y_int
+    ax.plot([x1,x2], [y1,y2], 'b--')
+    
+    return com, slope, y_int
 
+def del_adj_pts(k_col, f_ind, nxt=0):
+    """
+    This recursive function sets to 0 the frequency values with the maximum 
+    intensity in  a given k column. It also sets adjacent frequencies to zero
+    as well as frequencies adjacent to them so that only peaks are identified
+    by the function choose_n_pts().
+    """
+    if (nxt == 0):      # if k_col[f_ind] is max, delete points on both sides
+        if (f_ind > 0): # check that f_ind isn't first index
+            k_col = del_adj_pts(k_col, f_ind-1, nxt=-1)
+        if (f_ind < len(k_col)-1):  # check that f_ind isn't last index
+            k_col = del_adj_pts(k_col, f_ind+1, nxt=1)
+        
+    else:               # continue working upwards or downwards along k_col
+        if ((nxt == 1) & (f_ind < len(k_col)-1)):
+            if (k_col[f_ind] > k_col[f_ind+1]):
+                k_col = del_adj_pts(k_col, f_ind+1, nxt=1)
+        if ((nxt == -1) & (f_ind > 0)):
+            if (k_col[f_ind] > k_col[f_ind-1]):
+                k_col = del_adj_pts(k_col, f_ind-1, nxt=-1)
+
+    # after each loop, set the current f_ind to 0 and return an updated k_col
+    k_col[f_ind] = 0
+    return k_col
+
+        
+def choose_n_pts(power, fvals, kvals, numpts, ax):
+    """
+    Identifies n maxima at each k value for a given dispersion plot. Uses
+    helper funciton, del_adj_pts(), to single out maxima and guarantee that 
+    no two adjacent points both identified as maxima.
+    """
+    for i in range(numpts):
+        max_freqs = np.array([])
+        for k in range(len(kvals)):
+            f_ind = np.argmax(power[:,k])
+            if (i < numpts-1):
+                power[:, k] = del_adj_pts(power[:,k], f_ind)
+            # ensure that next peak is not adjacent to the current peak
+            """
+            if (i < numpts-1):
+                if (f_ind > 0):
+                    power[f_ind-1, k] = 0
+                if (f_ind < len(fvals)-1):
+                    power[f_ind+1, k] = 0
+            """
+            max_freqs = np.append(max_freqs, fvals[f_ind])
+                
+        ax.plot(kvals, max_freqs, 'bo')
+    
+    
 def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
-                           fmax=50e3, angular=False, fileprefix=False,
-                           logscale=True, pca=False,**plotkwargs):
+                           fmax=50e3, angular=False, logscale=True, pca=False, 
+                           mask=False, numpts=0, filepref=False, **plotkwargs):
     """
     Plots data from 2D FFT dispersion estimate.
 
@@ -444,80 +552,62 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     ntheta = fftpower.shape[1]
     
     if angular:
-        f = freq[0:fmaxindex]*2*np.pi
+        fvals = freq[0:fmaxindex]*2*np.pi
         k =  kpix/(image_rcal()*1e-2)  #convert to [m^-1]
         kminindex = mytools.find_closest(k,-kmax,value=False)
         ###
         kmaxindex = mytools.find_closest(k,0,value=False)
-        k=k[kminindex:kmaxindex] # originally k unchanged
+        kvals = k[kminindex:kmaxindex+1] # originally k unchanged
         ###
         #kmaxindex = mytools.find_closest(k,kmax,value=False)
     else:
-        f = freq[0:fmaxindex]
-        k = kpix*rindex #m = k*r, can calculate in pixels
-        kminindex = mytools.find_closest(k,-mmax,value=False)
-        kmaxindex = mytools.find_closest(k,mmax,value=False)
-
-    if logscale:
-        power_img = np.log10(fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose())
-    else:
-        power_img = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
-    
-    ax,cb,im = mytools.imview(power_img,x=k,y=f[0:fmaxindex],**plotkwargs)
-    #ax,cb,im = mytools.imview(power_img,x=k[kminindex:kmaxindex],y=f[0:fmaxindex],**plotkwargs)
+        fvals = freq[0:fmaxindex]
+        kvals = kpix*rindex #m = k*r, can calculate in pixels
+        kminindex = mytools.find_closest(kvals,-mmax,value=False)
+        kmaxindex = mytools.find_closest(kvals,mmax,value=False)
     
     ###
-    if pca == True:  # if true, find/plot centroid and principal component
-        power_pca = fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose()
-        # logscale version too heavily influenced by window size 
-        #power_pca = np.log10(fftpower[rindex,kminindex:kmaxindex,0:fmaxindex].transpose())
-        #power_pca -= np.amin(power_pca)
-        
-        # determine find center of mass of dispersion plot
-        ycom, xcom = scipy.ndimage.center_of_mass(power_pca)
-        com = np.array([k[int(xcom)], f[int(ycom)]])
-        ax.plot([com[0]], [com[1]], 'ko')
-                
-        # create to nx2 coord array (n = # of pts); create nx1 array of weights
-        coords = np.dstack(np.meshgrid(k,f)).reshape((-1,2),order='F')
-        weights = power_pca.reshape(-1,1)
-        
-        # subtract CoM vector from coordinate; apply weights
-        weighted = (coords-com) * np.sqrt(weights)
-        
-        # calculate total power & covariance matrix; find eigenvectors/values
-        tot_power = power_pca.sum()
-        cov_mat = (weighted).T.dot(weighted) / tot_power
-        eig_vals, vects = np.linalg.eig(cov_mat)
-        print "tot_power = ", tot_power
-        print "  cov_mat = ", cov_mat
-        print " eig_vals = ", eig_vals
-        print "eig_vects = ", vects
-        print
-        
-        # identify principle component & draw line along it through CoM
-        max_i = np.argmax(eig_vals)
-        slope = -vects[max_i][1] / vects[max_i][0]
-        # eigenvector assumes positive slope from top left to bottom right
-        # slope is multiplied by -1 for this reason
-        y_int = com[1] - (slope * com[0])
-        x1 = 0
-        y1 = y_int
-        x2 = -1000
-        y2 = slope * -1000 + y_int
-        print "slope = ", slope
-        print "y_int = ", y_int
-        print
-        ax.plot([x1,x2], [y1,y2], 'b--')
+    # specify plot window
+    power = fftpower[rindex, kminindex:kmaxindex+1, 0:fmaxindex].transpose()
+
+    if logscale:    # convert to logscale to create dispersion plot
+        ax,cb,im = mytools.imview(np.log10(power), x=kvals, y=fvals, **plotkwargs)
+    else:
+        ax,cb,im = mytools.imview(power, x=kvals, y=fvals, **plotkwargs)
+    #ax,cb,im = mytools.imview(power_img,x=kvals[kminindex:kmaxindex],y=f[0:fmaxindex],**plotkwargs)
+    ###
+    
+    ###
+    # find/plot centroid and principal component
+    if pca:
+        # apply mask to image before PCA
+        com, slope, y_int = plot_mask_PCA(power, kvals, fvals, ax)
+        print "  CoM :", com
+        print "slope =", slope
+        print "y_int =", y_int
+        """
+        print "original image"
+        a,b,c = mytools.imview(np.log10(power),x=kvals,y=f)
+        pylab.show()
+        print "masked image"
+        a,b,c = mytools.imview(np.log10(power)*mask_bg,x=kvals,y=f)
+        pylab.show()
+        """
+    ###
+    
+    ###
+    if numpts != 0:
+        choose_n_pts(power, fvals, kvals, numpts, ax)
+            
     ###
     
     ###
     # add title (axis object)
-    b_ind = fileprefix.find("_f0t")
-    bfield = fileprefix[b_ind-5:b_ind]
-    df_start = fileprefix.find("df") +2
-    df_end = fileprefix.find("/",df_start)
-    df_val = fileprefix[df_start:df_end]
+    b_ind = filepref.find("_f0t")
+    bfield = filepref[b_ind-5:b_ind]
+    df_start = filepref.find("df") + 2
+    df_end = filepref.find("/",df_start)
+    df_val = filepref[df_start:df_end]
     if pca == True:
         title = ("B-field: %s    rad: %.1fcm    df: %s\nCoM: (%.1f, %.1f)    slope: %.1f" 
                  % (bfield, radius, df_val, com[0], com[1], slope))
@@ -531,8 +621,8 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     if angular:   
         ax.set_xlabel(r'$k_{\theta}$ (m$^{-1}$)')
         ax.set_ylabel('$\omega$ (s$^{-1}$)')
-        ax.set_xlim(k[0],k[-1])
-        ax.set_ylim(0,f.max())
+        ax.set_xlim(kvals[0],kvals[-1])
+        ax.set_ylim(0,fvals.max())
     else:
         ax.set_xlabel('Mode number')                                                
         ax.set_ylabel('Frequency (Hz)') 
@@ -548,8 +638,8 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
         cb.set_label("Spectral Power (uint$^2$)")
     ###
     # save dispersion plot as image file
-    if fileprefix != False:
-        dispplot = str(fileprefix) + "r" + str(int(radius*10)) + "mm.jpg"
+    if filepref != False:
+        dispplot = str(filepref) + "r" + str(int(radius*10)) + "mm.jpg"
         pylab.savefig(dispplot)
     
     ###
@@ -557,12 +647,6 @@ def plot_FFT_2D_dispersion(freq, kpix, fftpower, radius=1.5, mmax=20, kmax=500,
     
     return ax,cb,im
     
-
-
-
-
-
-
 
 ################### PHASE MAP CALCULATIONS FOR 2D SPECTRA ######################################
 
